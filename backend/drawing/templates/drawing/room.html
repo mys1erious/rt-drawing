@@ -1,0 +1,77 @@
+<!-- drawing/templates/drawing/room.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>Drawing Room</title>
+</head>
+<body>
+    <canvas id="drawingCanvas" width="800" height="600" style="border:1px solid black;"></canvas>
+    {{ room_name|json_script:"room-name" }}
+    <script>
+        const roomName = JSON.parse(document.getElementById('room-name').textContent);
+
+        const drawingSocket = new WebSocket(
+            'ws://'
+            + window.location.host
+            + '/ws/drawing/'
+            + roomName
+            + '/'
+        );
+
+        const canvas = document.getElementById('drawingCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let drawing = false;
+
+        canvas.addEventListener('mousedown', () => {
+            drawing = true;
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            drawing = false;
+            ctx.beginPath();  // Clear the drawing path
+        });
+
+        // canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mousemove', drawPixel);
+
+        function drawPixel(event) {
+            if (drawing) {
+                const x = event.clientX - canvas.getBoundingClientRect().left;
+                const y = event.clientY - canvas.getBoundingClientRect().top;
+                const currentColor = '#000000';
+                const currentBrushSize = 3;
+
+                drawingSocket.send(JSON.stringify({
+                    'action': 'drawing',
+                    'data': {
+                        x: x,
+                        y: y,
+                        color: currentColor,
+                        size: currentBrushSize
+                    }
+                }));
+            }
+        }
+
+        drawingSocket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            if (data.action && data.action === 'drawing') {
+                // Render the drawing pixel received from the server
+                const x = data.data.x;
+                const y = data.data.y;
+                const color = data.data.color;
+                const size = data.data.size;
+
+                ctx.fillStyle = color;
+                ctx.fillRect(x, y, size, size);
+            }
+        };
+
+        drawingSocket.onclose = function(e) {
+            console.error('Drawing socket closed unexpectedly');
+        };
+    </script>
+</body>
+</html>

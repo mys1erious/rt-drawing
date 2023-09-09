@@ -1,0 +1,62 @@
+version: '3'
+
+services:
+  db:
+    restart: unless-stopped
+    image: postgres:latest
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    env_file:
+      - backend/config/settings/.env
+    shm_size: 1g
+
+  redis:
+    restart: unless-stopped
+    image: "redis:latest"
+    ports:
+      - "6380:6379"
+    volumes:
+      - redisdata:/data
+
+  web-backend:
+    build:
+      context: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/src
+    env_file:
+      - backend/config/settings/.env
+    depends_on:
+      - db
+      - redis
+    command: ["daphne", "-b", "0.0.0.0", "-p", "8000", "config.asgi:application"]
+
+  web-frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/src
+      - /app/node_modules
+    command: ["bun", "run", "dev"]
+
+#  nginx:
+#      image: nginx:latest
+#      ports:
+#        - "80:8080"
+#      volumes:
+#        - ./nginx/nginx-setup.conf:/etc/nginx/conf.d/default.conf:ro
+#        - frontend_build:/var/www/frontend
+#        - static:/collectedstatic
+#      depends_on:
+#        - backend
+#        - frontend
+
+volumes:
+  pgdata:
+  redisdata:
+#  frontend_build:
