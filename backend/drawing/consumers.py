@@ -2,6 +2,8 @@ import json
 
 from channels.generic.websocket import AsyncWebsocketConsumer
 
+from drawing.constants import ACTIONS
+
 
 class AsyncDrawingConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -18,12 +20,20 @@ class AsyncDrawingConsumer(AsyncWebsocketConsumer):
         data_json = json.loads(text_data)
         action = data_json.get('action')
 
-        if action == "drawing":
+        if action in ACTIONS:
             await self.channel_layer.group_send(
                 self.room_group_name,
-                {'type': 'drawing.data', 'data': data_json.get('data', {})}
+                {
+                    'type': 'drawing.data',
+                    'action': action,
+                    'data': data_json.get('data', {})
+                }
             )
 
     async def drawing_data(self, event):
         data = event.get('data')
-        await self.send(text_data=json.dumps({'action': 'drawing', 'data': data}))
+        action = event.get('action')
+        await self.send(text_data=json.dumps({
+            'action': action,
+            'data': data
+        }))
